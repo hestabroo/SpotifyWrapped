@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[154]:  TEST TEST
+# In[154]:
 
 
 import pandas as pd
@@ -9,16 +9,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import streamlit as st
+import time
 
 # In[155]:
 
+st.title("Spotify reWrapped")
+st.write("An all-time listening analysis tool by Hayden Estabrook.")
 
-#could set this up later to work right from the zip with import zipfile
+
+st.write("")
+st.subheader("File Upload")
 import zipfile, glob, json
 
-zippath = "/Users/haydenestabrook/Documents/Data Science Personal Portfolio/20250811 Spotify Wrapped/20250819_ExntendedStreamHistory.zip"
+zipobj = st.file_uploader(
+    "Upload your Spotify Extended Play History (.zip format).  Don't have your play history data yet? [Click here](https://www.spotify.com/us/account/privacy/) to download it!", 
+    type=['zip']
+)
+while zipobj is None:
+    st.stop()  #wait until we have a file
 
-with zipfile.ZipFile(zippath, "r") as z:
+st_progress_text = st.empty()
+st_progress_bar = st.progress(0)
+
+
+st_progress_text.write("Un-zipping your data...")
+with zipfile.ZipFile(zipobj) as z:
     files = [f for f in z.namelist() if f.startswith("Spotify Extended Streaming History/Streaming_History_Audio") and f.endswith(".json")]
     files = sorted(files)
 
@@ -35,6 +51,10 @@ streamhx = pd.concat(dfs).reset_index()
 
 
 #helpful stuff
+st_progress_text.text("Cleaning up formatting...")
+st_progress_bar.progress(1)
+time.sleep(1)  #make this loading bar seem cool
+
 streamhx = streamhx[streamhx['audiobook_title'].isna()]  #remove audiobooks
 
 streamhx['dttm'] = pd.to_datetime(streamhx['ts'])
@@ -55,18 +75,14 @@ streamhx.rename(columns={
 }, inplace=True)  #simplify some column names
 
 
-# # Top Artists
-
-# In[157]:
-
-
-artist_month[artist_month['artist_name']=="Marianas Trench"]
-
-
 # In[158]:
 
 
 #basic stuff, top artists
+st_progress_text.text("Analyzing top tracks and artists...")
+st_progress_bar.progress(5)
+time.sleep(1)  #make this loading bar seem cool
+
 artists = streamhx.groupby(by='artist_name').agg(
     hr_played = ('hr_played', 'sum'),
     ct = ('ts', 'count')
@@ -111,7 +127,19 @@ for a in artists.index:  #per artist...
 
 
 artists['peak_range'] = top_ranges
-artists
+
+df_artists_display = artists.reset_index()[['artist_name', 'ct', 'hr_played', 'peak_range']].rename(columns={
+    'artist_name': "Artist",
+    'ct': "Play Count",
+    'hr_played': "Total Hours Listened",
+    'peak_range': "Most Listened Between"
+})
+df_artists_display.index += 1
+df_artists_display = df_artists_display.style.format({
+    "Play Count": '{:,}',
+    "Total Hours Listened": '{:.0f}'
+})
+
 
 
 # In[159]:
@@ -119,7 +147,6 @@ artists
 
 #try plotly for interactive
 import plotly.express as px
-
 artist_month['hrs_perweek'] = artist_month['hr_played'] / 4.3  #avg weeks/month
 
 artist_month['artist_name'] = pd.Categorical(artist_month['artist_name'], categories=artists.index, ordered=True)  #convert to categorical to allow sorting by top artists
@@ -129,7 +156,7 @@ artist_month['6mo_avg'] = (  #calculate a 6mo avg
     artist_month.groupby('artist_name', observed=False)['hrs_perweek'].transform(lambda x: x.rolling(window=6).mean())
 )
 
-fig = px.area(
+px_artisttrend = px.area(
     artist_month,
     x='month_start',
     y='6mo_avg',
@@ -138,25 +165,22 @@ fig = px.area(
     labels = {
         'month_start': 'Month',
         'artist_name': 'Artist',
-        '6mo_avg': 'Avg. Weekly Hours'
+        '6mo_avg': 'Weekly Hours'
     },
-    hover_data={'6mo_avg':':.1f'}  #set formatting for hover
+    hover_data={'6mo_avg':':.1f'},  #set formatting for hover
+    title="All-Time Listening to Top Artists"
 )
 
-fig.update_traces(line_width=0.5)
-fig.update_layout(plot_bgcolor='white', xaxis_title='')
+px_artisttrend.update_traces(line_width=0.5)
+px_artisttrend.update_layout(plot_bgcolor='white', xaxis_title='')
 
-for f in [fig.update_xaxes, fig.update_yaxes]:  #iteratiely update both axis
+for f in [px_artisttrend.update_xaxes, px_artisttrend.update_yaxes]:  #iteratiely update both axis
     f(gridcolor='gainsboro', griddash='dot', gridwidth=0)
     
-fig.show()
+
 
 
 # # Top Songs
-
-# In[160]:
-
-
 songs = streamhx.groupby(by=['song_name', 'artist_name'], as_index=False).agg(
     total_hrs=('hr_played', 'sum'),
     times_played=('ts','count')
@@ -178,7 +202,21 @@ best_weeks.rename(columns={
     'total_hrs': 'hrs_top_week'
 }, inplace=True)
 songs = songs.merge(best_weeks, on=['song_name', 'artist_name'])
-songs.head(20)
+
+df_topsongs_display = songs[['song_name', 'artist_name', 'times_played', 'total_hrs', 'top_week']].head(50).rename(columns={
+    'song_name': 'Track',
+    'artist_name': 'Artist',
+    'times_played': 'Play Count',
+    'total_hrs': 'Total Hours Listened',
+    'top_week': 'Top Listening Week'
+})
+df_topsongs_display.index = df_topsongs_display.index + 1  #better rank
+df_topsongs_display = df_topsongs_display.style.format({
+    "Play Count": '{:,}',
+    "Total Hours Listened": '{:.1f}',
+    "Top Listening Week": '{:%b %d, %Y}'
+})
+
 
 
 # In[161]:
@@ -192,7 +230,21 @@ obsessions = songweeks[(songweeks['times_played']>=threshold) & (songweeks['tota
 _topids = obsessions.groupby('week_start')['times_played'].idxmax()
 obsessions = obsessions.loc[_topids]
 obsessions.sort_values(by='week_start', inplace=True)
-obsessions
+
+df_obsessions_display = obsessions.reset_index()[['week_start', 'song_name', 'artist_name', 'times_played', 'total_hrs']].rename(columns={
+    'song_name': "Track", 
+    'artist_name': "Artist", 
+    'week_start': "Week Of", 
+    'times_played': "Times Played", 
+    'total_hrs': "Total Hours"
+})
+df_obsessions_display.index += 1
+df_obsessions_display = df_obsessions_display.style.format({
+    "Week Of": '{:%b %d, %Y}',
+    "Times Played": '{:,}',
+    "Total Hours": '{:.1f}'
+})
+
 
 
 # In[ ]:
@@ -203,8 +255,10 @@ obsessions
 
 # # Listening Times & Patterns
 
-# In[162]:
-
+# In[201]:
+st_progress_text.text("Identifying listening patterns...")
+st_progress_bar.progress(10)
+time.sleep(1)  #make this loading bar seem cool
 
 from datetime import timedelta
 
@@ -223,49 +277,51 @@ for _start in range(len(weekly)-51):
 best['startdt'] = weekly.iloc[best['start']]['week_start']
 best['enddt'] = weekly.iloc[best['end']]['week_start'] + timedelta(days=6)  #end of week, not start
 
-print(f"\nYour peak listening year was {best['startdt']:%b %d, %Y} - {best['enddt']:%b %d, %Y}, when you listened to an average of {best['hours']/52:.1f} hrs/wk.\n")
 
 #last year
 lastyr = weekly.iloc[-52:]['hr_played'].sum()
 pct_change = (lastyr - best['hours']) / best['hours']
 
-print(f"\nLast year, you listened an average of {lastyr/52:.1f} hrs/wk.  This is down {-pct_change:.0%} from your peak.\n")
 
 
-# In[163]:
+# In[205]:
 
 
 #maybe plotly
 import plotly.express as px
 
 _peakyn = [True if best['start'] <= x <= best['end'] else False for x in weekly.index]
-colors = ['Peak' if x else 'Weekly Hours' for x in _peakyn]
+colors = ['Peak' if x else 'Regular' for x in _peakyn]
 
-fig = px.bar(
+px_totalhrstrend = px.bar(
     weekly,
     x='week_start',
     y='hr_played',
-    color=colors
+    color=colors,
+    color_discrete_sequence = ['darkgrey', 'darkolivegreen'],
+    labels = {
+        'week_start': 'Week Starting',
+        'color': 'Period',
+        'hr_played': 'Weekly Hours'
+    },
+    hover_data={'hr_played':':.1f'},  #set formatting for hover    
+    title="All-Time Hours Listened"
 )
 
-fig.add_scatter(
+px_totalhrstrend.add_scatter(
     x=weekly['week_start'],
     y=weekly['6mo_avg'],
     mode='lines',
-    line={'color':'black', 'dash':'dot', 'width':1.5},
+    line={'color':'dimgrey', 'dash':'dot', 'width':1.5},
     name='6mo Avg.'
 )
 
-fig.show()
+px_totalhrstrend.update_layout(plot_bgcolor='white', xaxis_title='')
+
+for f in [px_totalhrstrend.update_xaxes, px_totalhrstrend.update_yaxes]:  #iteratiely update both axis
+    f(gridcolor='gainsboro', griddash='dot', gridwidth=0)
 
 
-# In[ ]:
-
-
-
-
-
-# In[164]:
 
 
 import matplotlib.patches as patches
@@ -283,8 +339,11 @@ hmap = timedata.pivot_table(index='hour', columns='weekday', values='hr_played',
 hmap.index = hmap.index.map(timelabels)  #am/pm time values
 hmap = hmap[['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' ,'Saturday', 'Sunday']]  #weekdays in order
 
-plt.figure(figsize=(8,6))
-ax = sns.heatmap(hmap, annot=False, fmt='.0%', cmap = 'coolwarm', annot_kws={'size':8})
+f_hrsheatmap, ax = plt.subplots(figsize=(8,6))
+sns.heatmap(hmap, annot=False, fmt='.0%', cmap = 'coolwarm', annot_kws={'size':8}, ax=ax, vmin=0)
+ax.set_xlabel('')
+ax.set_ylabel('')
+ax.set_title("Average Hourly Listening")
 
 #define these patches so we can reuse them later
 def wkday_patch():
@@ -293,7 +352,7 @@ def wkday_patch():
         width=7,
         height=-8,
         fill=False,
-        edgecolor='black',
+        edgecolor='dimgrey',
         lw=1
     )
 
@@ -303,7 +362,7 @@ def wkend_patch():
         width=2,
         height=-24,
         fill=False,
-        edgecolor='black',
+        edgecolor='dimgrey',
         lw=1
     )
 
@@ -313,7 +372,7 @@ def border_patch():
         width=7,
         height=-24,
         fill=False,
-        edgecolor='black',
+        edgecolor='dimgrey',
         lw=1
     )
 
@@ -321,8 +380,13 @@ ax.add_patch(wkday_patch())
 ax.add_patch(wkend_patch())
 ax.add_patch(border_patch())
 
+cbar = ax.collections[0].colorbar  #override with generic labels, don't get into explaining zscores
+cbar.set_ticks([0, np.max(hmap)])
+cbar.set_ticklabels(["No Music", "Lots of Music!"])
 
-# In[165]:
+
+
+# In[206]:
 
 
 import calendar
@@ -332,8 +396,9 @@ timedata['month_fmt'] = timedata['month_start'].dt.strftime('%B')
 hmap=timedata.pivot_table(index='year', columns='month_fmt', values='hr_played', aggfunc = lambda x: x.sum()/4.3)  #weekly hours
 hmap = hmap[calendar.month_name[1:]].sort_index()  #sort months & years
 
-plt.figure(figsize=(12,4))
-sns.heatmap(hmap, annot=True, fmt='.1f', cmap='coolwarm', annot_kws={'size':8})
+calendarheatmap, ax = plt.subplots(figsize=(12,4))
+sns.heatmap(hmap, annot=True, fmt='.1f', cmap='coolwarm', annot_kws={'size':8}, ax=ax)
+
 
 
 # # Platform Used
@@ -355,14 +420,16 @@ map_terms = {
 
 platform['platform_cat'] = platform['platform'].map(lambda x: next((v for k, v in map_terms.items() if k in x.lower()), 'Other'))
 
-px.pie(
+platformpie = px.pie(
     platform,
     names = 'platform_cat',
     values='hr_played'
 )
 
 
-# In[167]:
+
+
+# In[190]:
 
 
 #fill in missing values, causing spikes per platform
@@ -387,7 +454,7 @@ platform_full['6mo_avg'] = (
     platform_full.groupby('platform_cat', observed=False)['weekly_hrs'].transform(lambda x: x.rolling(window=6).mean())
 )
 
-fig=px.area(
+platformtrend=px.area(
     platform_full,
     x='month_start',
     y='6mo_avg',
@@ -395,9 +462,12 @@ fig=px.area(
     line_shape = 'spline'
 )
 
-fig.update_traces(line_width=0.5)
+platformtrend.update_traces(line_width=0.5)
 
-fig.show()
+platformtrend.update_layout(plot_bgcolor='white', xaxis_title='')
+
+for f in [platformtrend.update_xaxes, platformtrend.update_yaxes]:  #iteratiely update both axis
+    f(gridcolor='gainsboro', griddash='dot', gridwidth=0)
 
 
 # # Metadta and Sentiment Analysis
@@ -408,6 +478,10 @@ fig.show()
 #DAMM - spotify's audio features API has been disabled for free users... pivot to last.fm
 #last fm data is much more populated by ARTIST, not track
 #**limit to the artists making up x% of playtime?  better trends and save the API
+st_progress_text.text("Finding your top styles...")
+st_progress_bar.progress(15)
+time.sleep(2)  #make this loading bar seem cool
+
 _artrank = streamhx.groupby('artist_name')['hr_played'].sum().sort_values(ascending=False)
 _cumpct = _artrank.cumsum() / _artrank.sum()
 topartists = _cumpct[_cumpct<=0.90].index
@@ -428,21 +502,41 @@ params = {
     'format': 'json'
 }
 
-responses = {}
-_c = 0  #tracking
-for a in topartists:
-    params['artist'] = a
-    _resp = requests.get(url, params)
-    responses[a] = _resp.json()
 
-    if _c%50==0: print(f"{_c}/{len(topartists)}")
-    _c+=1
+#just for testing, see if we can grab from local dir to save from hammering the API
+import pickle
+try:
+    _ppath = r"/Users/haydenestabrook/Documents/Data Science Personal Portfolio/20250811 Spotify Wrapped/lastfm_artistTopTags.pkl"
+    with open(_ppath, 'rb') as f:
+        responses = pickle.load(f)
+    responses = {k: responses[k] for k in responses if k in topartists}  #only keep ones currently in scope
+except: responses = {}
+
+
+try:  #wrapping this whole thing in a try/except to handle the case of API shutdowm
+    _c = 0  #tracking
+    for a in topartists[~topartists.isin(list(responses))]:  #only run things we haven't got back yet
+        params['artist'] = a
+        _resp = requests.get(url, params)
+        responses[a] = _resp.json()
+
+        if _c%1==0:
+            st_progress_text.text(f"Gathering user tags from Last.fm... ({_c/len(topartists):.1%})")
+            st_progress_bar.progress(int(15 + 65*_c/len(topartists)))
+        _c+=1
+except:
+    st.error("Sorry, it looks like the Last.fm API is too busy to execute right now...  Please try again in a few minutes.")
+    st.stop()
 
 
 # In[170]:
-
+st_progress_text.text("Cleaning up tags...")
+st_progress_bar.progress(80)
+time.sleep(2)  #make this loading bar seem cool
 
 #the artistTopTags reponse already standardizes tags so that top tag = 100 and others are scaled :)
+
+
 import string
 
 responses = {artist: data for artist, data in responses.items() if 'toptags' in data}  #exclude responses without the toptags key (rare not found errors)
@@ -457,17 +551,15 @@ for artist, data in responses.items():  #blow out dictionaries to long list of f
 artist_tags_long = pd.DataFrame(artist_tags_long)  #convert to df
 artist_tags_long['tag_name'] = artist_tags_long['tag_name'].str.title()  #convert to title case for better matching
 artist_tags_long['tag_name'] = artist_tags_long['tag_name'].str.replace(f"[{string.punctuation}]", " ", regex=True)
-artist_tags_long = artist_tags_long[~artist_tags_long['tag_name'].isin(['All', 'Canadian'])]  #get rid of that garbage "All" tag
+artist_tags_long = artist_tags_long[~artist_tags_long['tag_name'].isin(['All', 'Canadian', 'Canada', 'Usa', 'American'])]  #get rid of that garbage "All" tag
 
 #cut out noisy tags
-tags_all = artist_tags_long['tag_name'].value_counts()  #cut down noisy tags
-tags_keep = tags_all.sort_values(ascending=False).head(100).index  #top 100 only
+tags_all = artist_tags_long.groupby('tag_name')['ct'].sum()  #cut down noisy tags
+tags_keep = tags_all.sort_values(ascending=False).head(50).index  #top 100 only
 artist_tags_long = artist_tags_long[artist_tags_long['tag_name'].isin(tags_keep)] 
 
 artist_tags = artist_tags_long.pivot_table(index='artist_name', columns='tag_name', values='ct', aggfunc='max')  #convert to wide format  #for some reason, some artists have the same tag twice... use aggfunc=max
 artist_tags = artist_tags.fillna(0)
-artist_tags.shape
-
 
 # In[ ]:
 
@@ -478,7 +570,9 @@ artist_tags.shape
 # ## Clustering (KMeans, (H)DBScan)
 
 # In[171]:
-
+st_progress_text.text("Identifying optimum genre clustering...")
+st_progress_bar.progress(85)
+time.sleep(5)  #make this loading bar seem cool
 
 #let's kmeans cluster!  First, elbow method to find the ideal n
 from sklearn.pipeline import Pipeline
@@ -497,12 +591,12 @@ artist_tags = pd.DataFrame(  #keep the index and column names
 
 
 results = {}
-_nrange = range(10,31)  #max 10-30 clusters
+_nrange = range(15,31)  #max 10-30 clusters
 for n in _nrange:
     kmodel = Pipeline([
         ('scaler', StandardScaler()),
         #('pca', PCA(n_components=int(artist_tags.shape[1]/3))),
-        ('kmeans', KMeans(n_clusters=n))
+        ('kmeans', KMeans(n_clusters=n, random_state=69, n_init=100))
     ])
     kmodel.fit(artist_tags)  #don't need to drop artist_name because it's the index
 
@@ -525,12 +619,20 @@ dbis = pd.Series({key: val['DBI'] for key, val in results.items()})
 dbi_roll = dbis.rolling(window=3).mean()
 n = dbis.idxmin()  #could probably just say n=30... always ends up around there
 
+n = 15  #forcing 15 and just taking top 90% seems to give most interpretable results... if confirmed can remove the loop above
+
 print(f"\nn={n}\n\nInertia: {results[n]['inertia']:.3f}\nDBI: {results[n]['DBI']:.3f}\n")
 
-pd.DataFrame.from_dict(results, orient='index').plot(y=['inertia', 'silhouette', 'DBI'], secondary_y=['inertia'])
-
+#trainingperf, ax = plt.subplots()
+#pd.DataFrame.from_dict(results, orient='index').plot(y=['inertia', 'silhouette', 'DBI'], secondary_y=['inertia'], ax=ax)
+#st.pyplot(trainingperf)  #don't print this
 
 # In[172]:
+
+
+st_progress_text.text("Condensing and naming genre clusters...")
+st_progress_bar.progress(95)
+time.sleep(1)  #make this loading bar seem cool
 
 
 kmodel = results[n]['model']  #retrieve the optimum model
@@ -540,27 +642,13 @@ clusters = pd.DataFrame(
     columns = artist_tags.columns
 )
 
-plt.figure(figsize=(14,10))
-sns.heatmap(clusters.T, annot=True, fmt='.2f', annot_kws={'size':5})
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[173]:
+#clustermap, ax = plt.subplots(figsize=(14,10))
+#sns.heatmap(clusters.T, annot=True, fmt='.2f', annot_kws={'size':5}, ax=ax)
+#st.pyplot(clustermap)   #don't print this
 
 
 #add names back into the artists
-naming_threshold = np.mean(clusters.max())/10  #could be different for different data
+naming_threshold = np.mean(clusters.max())/5  #could be different for different data
 cnames = {}
 for _c, r in clusters.iterrows():
     r = r.where(r>naming_threshold).dropna()  #only positive values
@@ -577,9 +665,6 @@ tagged_artists = pd.DataFrame({
 
 tagged_artists['hr_played'] = tagged_artists['artist_name'].map(streamhx.groupby(by='artist_name')['hr_played'].sum())
 
-for c, _ in tagged_artists.groupby('cluster_name')['hr_played'].sum().sort_values(ascending=False).items():
-    display(tagged_artists[tagged_artists['cluster_name']==c].sort_values(by='hr_played', ascending=False).head(10))
-
 
 # In[174]:
 
@@ -590,35 +675,33 @@ streamhx['cluster_name'] = streamhx['artist_name'].map(artist_labels)
 
 _crank = streamhx.groupby('cluster_name')['hr_played'].sum().sort_values(ascending=False)
 _cumpct = _crank.cumsum() / _crank.sum()
-
 graph_clusters = _cumpct[_cumpct<=0.90].index  #only include categories that explain 90% of listening
 graph_clusters = [c for c in graph_clusters if c != 'Other']  #don't bother showing that "other" either if it shows up
 
 
 # In[175]:
-
+st_progress_text.text("Compiling final visualizations...")
+st_progress_bar.progress(99)
+time.sleep(2)  #make this loading bar seem cool
 
 #add a straight up pie chart
 _graph = streamhx[streamhx['cluster_name'].isin(graph_clusters)]
 
-fig = px.pie(
+_colors = sns.color_palette('Paired', len(graph_clusters)).as_hex()
+
+px_clusterpie = px.pie(
     names=_graph['cluster_name'],
     values=_graph['hr_played'],
-    color_discrete_sequence=_colors    
+    color_discrete_sequence=_colors,
+    title="My Musical Style"    
 )
 
-fig.show()
-
-
-# In[176]:
 
 
 _grp = streamhx.groupby(by=['month_start', 'cluster_name'], as_index=False)['hr_played'].sum()
 
 #for smooth 6mo avgs, will need to fill in missing months per cluster
 months = streamhx['month_start'].unique()
-#just top 10?
-_climit = 100
 clusters = graph_clusters
 
 full_index = [[c, m] for c in clusters for m in months]
@@ -638,20 +721,29 @@ cluster_months['6mo_avg'] = (
 
 cluster_months['6mo_pct'] = cluster_months['6mo_avg'] / cluster_months['month_start'].map(cluster_months.groupby('month_start')['6mo_avg'].sum())
 
-_colors = sns.color_palette('Paired', len(clusters)).as_hex()
-
-fig=px.area(
+px_clustertrend=px.area(
     cluster_months,
     x='month_start',
     y='6mo_pct',
     color='cluster_name',
     line_shape = 'spline',
-    color_discrete_sequence=_colors
+    color_discrete_sequence=_colors,
+    labels = {
+        'month_start': 'Month',
+        '6mo_pct': 'Percent Listening',
+        'cluster_name': 'Style'
+    },
+    hover_data={'6mo_pct':':.0%'},  #set formatting for hover
+    title="All-Time Listening by Style"
 )
 
-fig.update_traces(line_width=0.5)
-fig.update_layout(height=500)
-fig.show()
+px_clustertrend.update_traces(line_width=0.5)
+px_clustertrend.update_layout(height=500)
+px_clustertrend.update_yaxes(tickformat='.0%', range = [0,1])
+px_clustertrend.update_layout(plot_bgcolor='white', xaxis_title='')
+
+for f in [px_clustertrend.update_xaxes, px_clustertrend.update_yaxes]:  #iteratiely update both axis
+    f(gridcolor='gainsboro', griddash='dot', gridwidth=0)
 
 
 # In[177]:
@@ -698,6 +790,8 @@ for c, hmap in hrly_tots.items():
 
 
 # In[178]:
+from matplotlib.colors import to_hex, to_rgba
+_colorsalpha = [to_rgba(c, alpha=0.5) for c in _colors]  #make them a little more transparent to match plotly
 
 
 # each hour, which cluster is most above norm?
@@ -710,13 +804,15 @@ topcat = np.array(list(hrly_styles))[maxid]
 hmap = pd.DataFrame(maxid, columns=hrly_denom.columns)
 hmap.index = hmap.index.map(timelabels)
 
-print("\nHere's what you're normally listening to:")
-
-plt.figure(figsize=(9,7))
-ax = sns.heatmap(hmap, cmap=_colors, cbar=False, annot=topcat, fmt='', annot_kws={'size':5})
+f_style_overall_hmap , ax = plt.subplots(figsize=(9,7))
+sns.heatmap(hmap, cmap=_colorsalpha, cbar=False, annot=topcat, fmt='', annot_kws={'size':5}, ax=ax, vmin=0, vmax=len(graph_clusters)-1)
 ax.add_patch(wkday_patch())
 ax.add_patch(wkend_patch())
 ax.add_patch(border_patch())
+ax.set_xlabel('')
+ax.set_ylabel('')
+ax.set_title("Hourly Most-Listened Styles")
+
 
 
 # In[179]:
@@ -732,13 +828,14 @@ topcat = np.array(list(hrly_styles))[maxid]
 hmap = pd.DataFrame(maxid, columns=hrly_denom.columns)
 hmap.index = hmap.index.map(timelabels)
 
-print("\nEach hour, these are the styles you most disproportionately listen to:")
-
-plt.figure(figsize=(9,7))
-ax = sns.heatmap(hmap, cmap=_colors, cbar=False, annot=topcat, fmt='', annot_kws={'size':5})  #base
+f_style_diff_hmap, ax = plt.subplots(figsize=(9,7))
+sns.heatmap(hmap, cmap=_colorsalpha, cbar=False, annot=topcat, fmt='', annot_kws={'size':5}, ax=ax, vmin=0, vmax=len(graph_clusters)-1)
 ax.add_patch(wkday_patch())
 ax.add_patch(wkend_patch())
 ax.add_patch(border_patch())
+ax.set_xlabel('')
+ax.set_ylabel('')
+ax.set_title("Hourly Highest Outlier Styles")
 
 
 # In[180]:
@@ -752,6 +849,93 @@ _targ = 'rolling_zscore'
 _ztot = [hrly_styles[s][_targ].abs().sum().sum() for s in hrly_styles]
 _zrank = np.flip(np.argsort(_ztot))  #no reverse/ascending param in argsort
 
+
+
+st_progress_text.text("Done!")
+st_progress_bar.progress(100)
+
+time.sleep(1)  #let user see 100% for a sec
+st_progress_text.empty()
+st_progress_bar.empty()
+
+
+#------------------------------------------------------------------------------------------------------------------------------
+#hold all charts to the end and display here-----------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------
+st.text("")
+
+##Overview##
+st.header("Overview")
+st.write(f"Over your **{int(datadays/365)+1} years** on Spotify, you've listened to **{len(streamhx):,}** songs.  "  
+         f"That's over **{int(streamhx['hr_played'].sum()):,} hours**... or *{streamhx['hr_played'].sum()/24:.0f} days* straight!"
+         )
+
+##Overall Listening Volum Trends##
+st.write(f"Your peak all-time listening year was {best['startdt']:%b %d, %Y} - {best['enddt']:%b %d, %Y}, when you listened to an average of **{best['hours']/52:.1f} hrs/wk**.  "  
+         f"Last year, you listened an average of **{lastyr/52:.1f} hrs/wk**. This is down *{-pct_change:.0%}* from your peak.  " 
+         "Check out your full music listening history below:"
+         )
+st.plotly_chart(px_totalhrstrend)
+
+##Top Artists##
+st.text("")
+st.header("Top Artists")
+st.write(f"You've listened to a lot of different artists over the years ({streamhx['artist_name'].nunique():,} to be exact!)... but these were your favourites overall:")
+st.dataframe(df_artists_display)
+
+st.text("")
+st.write("Check out the historic relationship you've had with each of these artists:")
+st.plotly_chart(px_artisttrend)
+
+##Top Songs##
+st.header("Top Tracks")
+st.write(f"Out of the {streamhx['song_name'].nunique():,} unique songs you've listened to, these ones stood out as your top tracks of all time:")
+st.dataframe(df_topsongs_display)
+
+st.text("")
+st.write(f"There were also a few times you got a bit... *too* into one specific song for a week or so...")
+st.dataframe(df_obsessions_display, height = 500)
+st.write("...whoops  \n")
+
+##Genre Clustering##
+st.text("")
+st.header("Musical Style")
+st.write("For all that musical variety, the vast majority of your listening can be described as the following:")
+st.plotly_chart(px_clusterpie)
+
+st.write("Featuring favourite artists such as...")
+_cols = st.columns(2)
+for _i, c in enumerate(graph_clusters):
+    _clustersample = tagged_artists[tagged_artists['cluster_name']==c].sort_values(by='hr_played', ascending=False).head(10)
+    _df_display = _clustersample[['artist_name', 'hr_played']].reset_index(drop=True).rename(columns={
+        'artist_name': "Artist",
+        'hr_played': "Total Hours"
+    })
+    _df_display.index += 1
+    _df_display = _df_display.style.format({
+        "Total Hours": '{:.1f}'
+    })
+    with _cols[_i%2]: 
+        st.subheader(c)
+        st.dataframe(_df_display, height=200)  #alternate placing these in col1 and col2
+
+st.text("")
+st.write("Like all things, your taste has evolved over time. Check out your historic listening patterns with each of your favourite styles:")
+st.plotly_chart(px_clustertrend)
+
+st.header("Listening Trends")
+
+st.write(f"Whether it's early in the morning or late at night, everyone has a favourite time to listen to music.  Here are your top listening times:")
+st.pyplot(f_hrsheatmap)
+
+st.write("And any given point in the day, this is the kind of music you're typically listening to...")
+st.pyplot(f_style_overall_hmap)
+
+#st.write("...But these are the genres you disproportionately gravitate towards at each point in the day:")
+#st.pyplot(f_style_diff_hmap)
+
+st.text("")
+st.write("...But like all things, there's a time and a place. Here are some standout listening trends you have for specific styles throughout the week:")
 for s in _zrank[:5]:  #print the top 5 trends
     _style = list(hrly_styles)[s]
     
@@ -759,29 +943,25 @@ for s in _zrank[:5]:  #print the top 5 trends
     hmap = hrly_styles[_style][_targ].copy()
     hmap.index = hmap.index.map(timelabels)
     
-    print(f"{_style} listening patterns:\n")
-    
-    ax = sns.heatmap(hmap, cmap=cmap, center=0, vmin=-2, vmax=2)
+    fig, ax = plt.subplots()
+    ax = sns.heatmap(hmap, cmap=cmap, center=0, vmin=-2, vmax=2, ax=ax)
     ax.add_patch(wkday_patch())
     ax.add_patch(wkend_patch())
     ax.add_patch(border_patch())
-    plt.show()
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+
+    cbar = ax.collections[0].colorbar  #override with generic labels, don't get into explaining zscores
+    cbar.set_ticks([-2, 0, 2])
+    cbar.set_ticklabels(["Less Than Usual", "Typical", "More Than Usual"])
+
+    st.subheader(f"{_style} Listening Trends:")
+    st.pyplot(fig)
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+for _ in range (4): st.text("")
+st.subheader("Thank you!")
+st.write(f"For one last fun fact, in the time you've spent listening to Spotify, you could have coded this project {streamhx['hr_played'].sum()/40:.0f} times!!  "
+    "Thanks so much for checking this out - it was a blast to build and I'd love to hear your thoughts or suggestions for future work!  "
+    "  \n ~Hayden"
+    )
