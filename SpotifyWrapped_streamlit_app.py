@@ -14,7 +14,7 @@ import time
 
 # In[155]:
 
-st.title("Spotify reWrapped")
+st.title("Spotify Wrapped+ 🎧")
 st.write("An all-time listening analysis tool by Hayden Estabrook.")
 
 
@@ -33,7 +33,7 @@ st_progress_text = st.empty()
 st_progress_bar = st.progress(0)
 
 
-st_progress_text.write("Un-zipping your data...")
+st_progress_text.write("🤐 Un-zipping your data...")
 with zipfile.ZipFile(zipobj) as z:
     files = [f for f in z.namelist() if f.startswith("Spotify Extended Streaming History/Streaming_History_Audio") and f.endswith(".json")]
     files = sorted(files)
@@ -51,7 +51,7 @@ streamhx = pd.concat(dfs).reset_index()
 
 
 #helpful stuff
-st_progress_text.text("Cleaning up formatting...")
+st_progress_text.text("🧼 Cleaning up formatting...")
 st_progress_bar.progress(1)
 time.sleep(1)  #make this loading bar seem cool
 
@@ -79,7 +79,7 @@ streamhx.rename(columns={
 
 
 #basic stuff, top artists
-st_progress_text.text("Analyzing top tracks and artists...")
+st_progress_text.text("📈 Analyzing top tracks and artists...")
 st_progress_bar.progress(5)
 time.sleep(1)  #make this loading bar seem cool
 
@@ -256,7 +256,7 @@ df_obsessions_display = df_obsessions_display.style.format({
 # # Listening Times & Patterns
 
 # In[201]:
-st_progress_text.text("Identifying listening patterns...")
+st_progress_text.text("🔍 Identifying listening patterns...")
 st_progress_bar.progress(10)
 time.sleep(1)  #make this loading bar seem cool
 
@@ -298,7 +298,7 @@ px_totalhrstrend = px.bar(
     x='week_start',
     y='hr_played',
     color=colors,
-    color_discrete_sequence = ['darkgrey', 'darkolivegreen'],
+    color_discrete_sequence = ['darkgrey', 'limegreen'],
     labels = {
         'week_start': 'Week Starting',
         'color': 'Period',
@@ -478,7 +478,7 @@ for f in [platformtrend.update_xaxes, platformtrend.update_yaxes]:  #iteratiely 
 #DAMM - spotify's audio features API has been disabled for free users... pivot to last.fm
 #last fm data is much more populated by ARTIST, not track
 #**limit to the artists making up x% of playtime?  better trends and save the API
-st_progress_text.text("Finding your top styles...")
+st_progress_text.text("👨‍🎤 Finding your top styles...")
 st_progress_bar.progress(15)
 time.sleep(2)  #make this loading bar seem cool
 
@@ -521,7 +521,7 @@ try:  #wrapping this whole thing in a try/except to handle the case of API shutd
         responses[a] = _resp.json()
 
         if _c%1==0:
-            st_progress_text.text(f"Gathering user tags from Last.fm... ({_c/len(topartists):.1%})")
+            st_progress_text.text(f"📡 Gathering user tags from Last.fm... ({_c/len(topartists):.1%})")
             st_progress_bar.progress(int(15 + 65*_c/len(topartists)))
         _c+=1
 except:
@@ -530,7 +530,7 @@ except:
 
 
 # In[170]:
-st_progress_text.text("Cleaning up tags...")
+st_progress_text.text("♻️ Cleaning up tags...")
 st_progress_bar.progress(80)
 time.sleep(2)  #make this loading bar seem cool
 
@@ -570,7 +570,7 @@ artist_tags = artist_tags.fillna(0)
 # ## Clustering (KMeans, (H)DBScan)
 
 # In[171]:
-st_progress_text.text("Identifying optimum genre clustering...")
+st_progress_text.text("👯‍♀️ Deriving optimum genre clustering...")
 st_progress_bar.progress(85)
 time.sleep(5)  #make this loading bar seem cool
 
@@ -630,7 +630,7 @@ print(f"\nn={n}\n\nInertia: {results[n]['inertia']:.3f}\nDBI: {results[n]['DBI']
 # In[172]:
 
 
-st_progress_text.text("Condensing and naming genre clusters...")
+st_progress_text.text("📝 Condensing and naming clusters...")
 st_progress_bar.progress(95)
 time.sleep(1)  #make this loading bar seem cool
 
@@ -680,7 +680,7 @@ graph_clusters = [c for c in graph_clusters if c != 'Other']  #don't bother show
 
 
 # In[175]:
-st_progress_text.text("Compiling final visualizations...")
+st_progress_text.text("📊 Compiling final visualizations...")
 st_progress_bar.progress(99)
 time.sleep(2)  #make this loading bar seem cool
 
@@ -695,6 +695,7 @@ px_clusterpie = px.pie(
     color_discrete_sequence=_colors,
     title="My Musical Style"    
 )
+px_clusterpie.update_traces(texttemplate='%{percent:.0%}')  #no decimals
 
 
 
@@ -851,7 +852,7 @@ _zrank = np.flip(np.argsort(_ztot))  #no reverse/ascending param in argsort
 
 
 
-st_progress_text.text("Done!")
+st_progress_text.text("✅ Done!")
 st_progress_bar.progress(100)
 
 time.sleep(1)  #let user see 100% for a sec
@@ -920,7 +921,7 @@ for _i, c in enumerate(graph_clusters):
         st.dataframe(_df_display, height=200)  #alternate placing these in col1 and col2
 
 st.text("")
-st.write("Like all things, your taste has evolved over time. Check out your historic listening patterns with each of your favourite styles:")
+st.write("But it goes without saying, your taste has evolved over time. Check out your historic listening patterns with each of your favourite styles:")
 st.plotly_chart(px_clustertrend)
 
 st.header("Listening Trends")
@@ -928,14 +929,15 @@ st.header("Listening Trends")
 st.write(f"Whether it's early in the morning or late at night, everyone has a favourite time to listen to music.  Here are your top listening times:")
 st.pyplot(f_hrsheatmap)
 
-st.write("And any given point in the day, this is the kind of music you're typically listening to...")
+st.text("")
+st.write("And at any given point in the day, this is the kind of music you're typically listening to...")
 st.pyplot(f_style_overall_hmap)
 
 #st.write("...But these are the genres you disproportionately gravitate towards at each point in the day:")
 #st.pyplot(f_style_diff_hmap)
 
 st.text("")
-st.write("...But like all things, there's a time and a place. Here are some standout listening trends you have for specific styles throughout the week:")
+st.write("...But like all things, there's a time and a place... Here are some standout listening trends you have for specific styles throughout the week:")
 for s in _zrank[:5]:  #print the top 5 trends
     _style = list(hrly_styles)[s]
     
@@ -960,8 +962,8 @@ for s in _zrank[:5]:  #print the top 5 trends
 
 
 for _ in range (4): st.text("")
-st.subheader("Thank you!")
+st.subheader("That's all for now!")
 st.write(f"For one last fun fact, in the time you've spent listening to Spotify, you could have coded this project {streamhx['hr_played'].sum()/40:.0f} times!!  "
-    "Thanks so much for checking this out - it was a blast to build and I'd love to hear your thoughts or suggestions for future work!  "
+    "Thanks so much for checking this out - it was a blast to build and I'd love to hear your thoughts or suggestions for future work.  "
     "  \n ~Hayden"
     )
