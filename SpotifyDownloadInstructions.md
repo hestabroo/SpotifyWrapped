@@ -1,6 +1,6 @@
 **<u>Extended Play History Download Instructions<u>**
 
-In order to power this tool, you'll need a log of your full Spotify play history.  When you click the link below, you will be redicted to Spotify's official website.
+*\*In order to power this tool, you'll need a log of your full Spotify play history.  When you click the link below, you will be redicted to Spotify's official website.*
 
 1. Sign in if you aren't already
 2. Navigate to **Account Privacy**
@@ -8,7 +8,7 @@ In order to power this tool, you'll need a log of your full Spotify play history
 4. Select **Extended Streaming History**
 5. Submit a request for your data
 
-Once it's ready, Spotify will send you a link to download!  They say it can take up to 30 days, but is typically <1 week in my experience.  Once you've got the file, just flip that .zip right into the dashboard!  No need to extract, the tool takes care of it.
+Once it's ready, Spotify will send you a link to download!  They say it can take up to 30 days, but is typically less than a week in my experience.  Once you've got the file, just flip that .zip right into the dashboard!  No need to extract, the tool takes care of it.
 
 Cheers!<br>Hayden
 
