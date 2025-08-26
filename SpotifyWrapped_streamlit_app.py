@@ -37,19 +37,26 @@ while zipobj is None:
 st_progress_text = st.empty()
 st_progress_bar = st.progress(0)
 
+#wrap this in a try in case wrong format
+try:
+    st_progress_text.write("🤐 Un-zipping your data...")
+    with zipfile.ZipFile(zipobj) as z:
+        files = [f for f in z.namelist() if f.startswith("Spotify Extended Streaming History/Streaming_History_Audio") and f.endswith(".json")]
+        files = sorted(files)
 
-st_progress_text.write("🤐 Un-zipping your data...")
-with zipfile.ZipFile(zipobj) as z:
-    files = [f for f in z.namelist() if f.startswith("Spotify Extended Streaming History/Streaming_History_Audio") and f.endswith(".json")]
-    files = sorted(files)
+        dfs=[]
+        for f in files:
+            with z.open(f) as fo:
+                data = pd.DataFrame(json.load(fo))
+                dfs.append(data)
 
-    dfs=[]
-    for f in files:
-        with z.open(f) as fo:
-            data = pd.DataFrame(json.load(fo))
-            dfs.append(data)
-
-streamhx = pd.concat(dfs).reset_index()
+    streamhx = pd.concat(dfs).reset_index()
+    if streamhx.empty: raise BadData("no data imported")  #explicitly call an error if it's empty
+except:
+    st.error("Hm... That doesn't seem to be the right file/format... Try again?")
+    st_progress_text.empty()
+    st_progress_bar.empty()
+    st.stop()
 
 
 #helpful stuff - clean up columns, etc.
@@ -409,6 +416,8 @@ try:  #wrapping this whole thing in a try/except to handle the case of API shutd
         _c+=1
 except:
     st.error("Sorry, it looks like the Last.fm API is too busy to execute right now...  Please try again in a few minutes.")
+    st_progress_text.empty()
+    st_progress_bar.empty()
     st.stop()
 
 
