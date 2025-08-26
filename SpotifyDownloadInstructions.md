@@ -10,6 +10,7 @@ When you click the link below, you will be redicted to Spotify's official websit
 Once it's ready, Spotify will send you a link to download!  They say it can take up to 30 days, but is typically <1 week in my experience.  
 Once you've got the file, just flip that .zip right into the dashboard!  No need to extract, the tool takes care of it.
 
-Cheers!\nHayden
+Cheers!
+Hayden
 
 [Continue to Spotify](https://www.spotify.com/us/account/privacy/)
