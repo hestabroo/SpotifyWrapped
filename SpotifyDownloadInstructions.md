@@ -13,4 +13,4 @@ Once it's ready, Spotify will send you a link to download!  They say it can take
 
 Cheers!<br>Hayden
 
-# [Continue to Spotify](https://www.spotify.com/us/account/privacy/)
+## [Continue to Spotify](https://www.spotify.com/us/account/privacy/)
