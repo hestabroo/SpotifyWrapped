@@ -47,9 +47,6 @@ with zipfile.ZipFile(zipobj) as z:
 streamhx = pd.concat(dfs).reset_index()
 
 
-# In[156]:
-
-
 #helpful stuff
 st_progress_text.text("🧼 Cleaning up formatting...")
 st_progress_bar.progress(1)
@@ -244,12 +241,6 @@ df_obsessions_display = df_obsessions_display.style.format({
     "Times Played": '{:,}',
     "Total Hours": '{:.1f}'
 })
-
-
-
-# In[ ]:
-
-
 
 
 
@@ -858,6 +849,7 @@ st_progress_bar.progress(100)
 time.sleep(1)  #let user see 100% for a sec
 st_progress_text.empty()
 st_progress_bar.empty()
+
 
 
 #------------------------------------------------------------------------------------------------------------------------------
