@@ -1,4 +1,4 @@
-<b><u>Extended Play History Download Instructions<u><b>
+### Extended Play History Download Instructions
 
 In order to power this tool, you'll need a log of your full Spotify play history.  When you click the link below, you will be redicted to Spotify's official website.
 
@@ -13,4 +13,4 @@ Once it's ready, Spotify will send you a link to download!  They say it can take
 
 Cheers!<br>Hayden
 
-[Continue to Spotify](https://www.spotify.com/us/account/privacy/)
+# [Continue to Spotify](https://www.spotify.com/us/account/privacy/)
