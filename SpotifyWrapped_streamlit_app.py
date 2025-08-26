@@ -28,7 +28,7 @@ st.write("An all-time listening analysis tool by Hayden Estabrook.")
 st.write("")
 st.subheader("File Upload")
 zipobj = st.file_uploader(
-    "Upload your Spotify Extended Play History (.zip format).  Don't have your play history data yet? [Click here](https://www.spotify.com/us/account/privacy/) to download it!", 
+    "Upload your Spotify Extended Play History (.zip format).  Don't have your play history data yet? [Click here](https://hestabroo.github.io/SpotifyWrapped/SpotifyDownloadInstructions.html) to download it!", 
     type=['zip']
 )
 while zipobj is None:
@@ -337,7 +337,7 @@ df_topsongs_display = df_topsongs_display.style.format({
 #what were your obsessions??
 st_progress_text.text("🧐 Uncovering all your guilty pleasures...")
 st_progress_bar.progress(13)
-time.sleep(1)
+time.sleep(1.5)
 
 threshold = np.percentile(songweeks.groupby(by='week_start')['times_played'].max(), 95)  #make this dynamic to different listening styles
 obsessions = songweeks[(songweeks['times_played']>=threshold) & (songweeks['total_hrs']>threshold*1/60)]  #there seem to be weird weeks with lots of very short plays... exclude
@@ -707,7 +707,7 @@ st.write(f"Over your **{int(datadays/365)+1} years** on Spotify, you've listened
 
 ##Overall Listening Volum Trends##
 st.write(f"Your peak all-time listening year was {best['startdt']:%b %d, %Y} - {best['enddt']:%b %d, %Y}, "
-         "when you listened to an average of **{best['hours']/52:.1f} hrs/wk**.  "  
+         f"when you listened to an average of **{best['hours']/52:.1f} hrs/wk**.  "  
          f"Last year, you listened an average of **{lastyr/52:.1f} hrs/wk**. This is down *{-pct_change:.0%}* from your peak.  " 
          "Check out your full music listening history below:"
          )
@@ -735,7 +735,7 @@ st.dataframe(df_topsongs_display, height=387)
 st.text("")
 st.write(f"There were also a few times you got a bit... *too* into one specific song for a week or so...")
 st.dataframe(df_obsessions_display, height = 535)
-st.write("...whoops  \n")
+st.write("...whoops...  \n")
 
 ##Genre Clustering##
 st.text("")
@@ -787,7 +787,7 @@ for _style, _fig in f_topztrends.items():
 
 for _ in range (4): st.text("")
 st.subheader("That's all for now!")
-st.write(f"For one last fun fact, in the time you've spent listening to Spotify you could have coded this project {streamhx['hr_played'].sum()/40:.0f} times!!  "
+st.write(f"For one last fun fact, in the time you've spent listening to Spotify you could have coded this project **{streamhx['hr_played'].sum()/40:.0f} times**!!  "
     "Thanks so much for checking this out - "
     "it was a blast to build and I'd love to hear your thoughts or suggestions for future work.  "
 )
