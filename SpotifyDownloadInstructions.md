@@ -1,4 +1,4 @@
-<u>**Extended Play History Download Instructions**<u>
+**<u>Extended Play History Download Instructions<u>**
 
 In order to power this tool, you'll need a log of your full Spotify play history.
 
