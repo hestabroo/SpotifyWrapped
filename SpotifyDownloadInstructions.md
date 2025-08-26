@@ -1,4 +1,4 @@
-**<u>Extended Play History Download Instructions<u>**
+<u>**Extended Play History Download Instructions**<u>
 
 In order to power this tool, you'll need a log of your full Spotify play history - and Spotify really buries it.  When you click the link below, you will be redicted to Spotify's official website.
 
