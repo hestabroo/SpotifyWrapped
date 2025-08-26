@@ -11,6 +11,7 @@ Once it's ready, Spotify will send you a link to download!  They say it can take
 Once you've got the file, just flip that .zip right into the dashboard!  No need to extract, the tool takes care of it.
 
 Cheers!
+
 Hayden
 
 [Continue to Spotify](https://www.spotify.com/us/account/privacy/)
