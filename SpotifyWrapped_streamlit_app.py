@@ -83,12 +83,17 @@ streamhx.rename(columns={
     'master_metadata_album_album_name': 'album_name'
 }, inplace=True)  #simplify some column names
 
+start_date = np.percentile(streamhx['dttm'],1)  #exclude tail before really using account...if like me.  should be insignificant otherwise
+streamhx = streamhx[streamhx['dttm']>=start_date]
+
+
 
 
 # # Listening Times & Patterns
 st_progress_text.text("🔍 Identifying listening patterns...")
 st_progress_bar.progress(5)
 time.sleep(1)  #make this loading bar seem cool
+
 
 weekly = streamhx.groupby(by='week_start', as_index=False)['hr_played'].sum()
 weekly = weekly.sort_values('week_start')
@@ -145,16 +150,15 @@ for f in [px_totalhrstrend.update_xaxes, px_totalhrstrend.update_yaxes]:  #itera
 
 
 #heatmap of listening times
-start_date = np.percentile(streamhx['dttm'],1)  #exclude tail before really using account...if like me
-timedata = streamhx[streamhx['dttm']>=start_date].copy()
-datadays = (timedata['dttm'].max() - timedata['dttm'].min()).days
+datadays = (streamhx['dttm'].max() - streamhx['dttm'].min()).days
+full_months = pd.DataFrame({'month_start': streamhx['month_start'].unique()})
 
 timelabels = {}
 for _ in range (24):  #quick lookup for time formatting
     _hr = (_%12) or 12
     timelabels[_] = f"{_hr}:00 {'AM' if _<12 else 'PM'}"
 
-hmap = timedata.pivot_table(index='hour', columns='weekday', values='hr_played', aggfunc = lambda x: x.sum()/(datadays/7))
+hmap = streamhx.pivot_table(index='hour', columns='weekday', values='hr_played', aggfunc = lambda x: x.sum()/(datadays/7))
 hmap.index = hmap.index.map(timelabels)  #am/pm time values
 hmap = hmap[['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' ,'Saturday', 'Sunday']]  #weekdays in order
 
@@ -301,6 +305,19 @@ for f in [px_artisttrend.update_xaxes, px_artisttrend.update_yaxes]:  #iteratiel
     f(gridcolor='gainsboro', griddash='dot', gridwidth=0)
     
 
+#identify most CONSISTENT played artist
+full_artists = pd.DataFrame({'artist_name': streamhx['artist_name'].unique()})
+full_grid = full_months.merge(full_artists, how="cross")
+
+artist_months = streamhx.groupby(['artist_name', 'month_start'], as_index=False).agg(ct=('ts', 'count'), hr_played=('hr_played', 'sum'))
+artist_months = full_grid.merge(artist_months, how="left", on=['month_start', 'artist_name'])
+artist_months = artist_months.fillna(0)
+
+artist_rank = artist_months.groupby('artist_name', as_index=False)['hr_played'].median()
+artist_rank = artist_rank.sort_values('hr_played', ascending=False)
+artist_rank = artist_rank[artist_rank['hr_played']>0] #ignore artists w 0 median
+goto_artist = artist_rank.head(1)['artist_name'].iloc[0]
+
 
 
 # # Top Songs
@@ -367,6 +384,26 @@ df_obsessions_display = df_obsessions_display.style.format({
     "Times Played": '{:,}',
     "Total Hours": '{:.1f}'
 })
+
+#what was your most consistent song?
+full_songs = pd.DataFrame({'song_name': streamhx['song_name'].unique()})
+full_grid = full_months.merge(full_songs, how="cross")
+
+song_months = streamhx.groupby(['song_name', 'month_start'], as_index=False).agg(ct=('ts', 'count'), hr_played=('hr_played', 'sum'))
+song_months = full_grid.merge(song_months, how="left", on=['month_start', 'song_name'])
+song_months = song_months.fillna(0)
+
+song_rank = song_months.groupby('song_name', as_index=False)['hr_played'].median()
+song_rank = song_rank.sort_values('hr_played', ascending=False)
+song_rank = song_rank[song_rank['hr_played']>0]  #ignore median 0
+
+goto_song = song_rank.head(1)['song_name'].iloc[0]
+goto_songartist = songs[songs['song_name']==goto_song].head(1)['artist_name'].iloc[0]
+
+
+
+
+
 
 
 
@@ -707,10 +744,11 @@ st_progress_bar.empty()
 #hold all charts to the end and display here-----------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------
 st.text("")
+datayears = int(datadays/365)+1
 
 ##Overview##
 st.header("Overview")
-st.write(f"Over your **{int(datadays/365)+1} years** on Spotify, you've listened to **{len(streamhx):,}** songs.  "  
+st.write(f"Over your **{datayears} years** on Spotify, you've listened to **{len(streamhx):,}** songs.  "  
          f"That's over **{int(streamhx['hr_played'].sum()):,} hours**... or *{streamhx['hr_played'].sum()/24:.0f} days* straight!"
          )
 
@@ -723,33 +761,42 @@ st.write(f"Your peak all-time listening year was {best['startdt']:%b %d, %Y} - {
 st.plotly_chart(px_totalhrstrend)
 
 ##Top Artists##
+_optionalphrase = ""
+if len(goto_artist)>0: _optionalphrase = f"Over your {datayears} years on Spotify, **{goto_artist}** has been your cheerleader.  Whether or not they're your most played, they're the artist you've listened to the most consistently since day one.  "
+
 st.text("")
 st.header("Top Artists")
 st.write(f"You've listened to a lot of different artists over the years ({streamhx['artist_name'].nunique():,} to be exact!), "
-         "but these were your favourites overall:"
+         "but a few stood out above the rest.  "
+         f"{_optionalphrase}"
+         "Check out the full list of your top-played artists below:"
          )
 st.dataframe(df_artists_display, height=387)
 
 st.text("")
-st.write("Check out the historic relationship you've had with each of these artists:")
+st.write("And check out the historic relationship you've had with each of these artists!")
 st.plotly_chart(px_artisttrend)
 
 ##Top Songs##
+_optionalphrase = ""
+if len(goto_song)>0: _optionalphrase = f"Your theme song for the past {datayears} years has been **{goto_song}** by **{goto_songartist}**.  While it may not have been your most played, this is the song you've listened to the most consistently through it all.  "
+
 st.header("Top Tracks")
-st.write(f"Out of the {streamhx['song_name'].nunique():,} unique songs you've listened to, "
-         "these ones stood out as your top tracks of all time:"
+st.write(f"Out of the {streamhx['song_name'].nunique():,} unique songs you've listened to, a few were certainly your favourites.  "
+         f"{_optionalphrase}"
+         "Check out the full list of your top tracks below:"
          )
 st.dataframe(df_topsongs_display, height=387)
 
 st.text("")
-st.write(f"There were also a few times you got a bit... *too* into one specific song for a week or so...")
+st.write(f"There were also some times you got a bit... *too* into one specific song for a week or so...")
 st.dataframe(df_obsessions_display, height = 535)
 st.write("...whoops...  \n")
 
 ##Genre Clustering##
 st.text("")
 st.header("Musical Style")
-st.write("For all that musical variety, the vast majority of your listening can be described as the following:")
+st.write("For all that musical variety though, the vast majority of your listening can be described as the following:")
 st.plotly_chart(px_clusterpie)
 
 st.write("Featuring such favourite artists as...")
@@ -770,23 +817,23 @@ for _i, c in enumerate(graph_clusters):
 
 st.text("")
 st.write("But it goes without saying, your taste has evolved over time. "
-         "Check out your historic listening patterns with each of your favourite styles:"
+         "Check out your historic listening patterns with each of your styles:"
          )
 st.plotly_chart(px_clustertrend)
 
 st.header("Listening Trends")
 
-st.write(f"Whether it's early in the morning or late at night, everyone has a favourite time to listen to music. "
+st.write(f"Whether it's early in the morning or late at night, everyone has a favourite time to listen to music!  "
          "Here are your top listening times:"
          )
 st.pyplot(f_hrsheatmap)
 
 st.text("")
-st.write("And at any given point in the day, this is the kind of music you're typically listening to...")
+st.write("And at any given point in the day, this is the kind of music you're typically listening to:")
 st.pyplot(f_style_overall_hmap)
 
 st.text("")
-st.write("...But like all things, there's a time and a place... "
+st.write("...But like all things, there's a time and a place.  "
          "Here are some standout listening trends you have for specific styles throughout the week:"
          )
 for _style, _fig in f_topztrends.items():
@@ -796,7 +843,7 @@ for _style, _fig in f_topztrends.items():
 
 for _ in range (4): st.text("")
 st.subheader("That's all for now!")
-st.write(f"For one last fun fact, in the time you've spent listening to Spotify you could have coded this project **{streamhx['hr_played'].sum()/40:.0f} times**!!  "
+st.write(f"For one last fun fact, in the time you've spent listening to Spotify you could have coded this project {streamhx['hr_played'].sum()/40:.0f} times!!  "
     "Thanks so much for checking this out - "
     "it was a blast to build and I'd love to hear your thoughts or suggestions for future work.  "
 )
