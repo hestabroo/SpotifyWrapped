@@ -28,7 +28,7 @@ st.write("An all-time listening analysis tool by Hayden Estabrook.")
 st.write("")
 st.subheader("File Upload")
 zipobj = st.file_uploader(
-    "Upload your Spotify Extended Play History (.zip format).  Don't have your play history data yet? [Click here](https://hestabroo.github.io/SpotifyWrapped/SpotifyDownloadInstructions.html) to download it!", 
+    "Upload your Spotify Extended Play History (.zip format).  Don't have your play history data yet? [Click here](https://hestabroo.github.io/SpotifyWrapped/SpotifyDownloadInstructions.html) to download it!\nYour data is never stored, and is only temporarily used to compile the report below.", 
     type=['zip']
 )
 while zipobj is None:
