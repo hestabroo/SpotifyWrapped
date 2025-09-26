@@ -533,7 +533,7 @@ clusters = pd.DataFrame(
 
 
 #name the clusters by top tags
-naming_threshold = np.mean(clusters.max())/5  #could be different for different data
+naming_threshold = np.mean(clusters.max())/10  #could be different for different data
 cnames = {}
 for _c, r in clusters.iterrows():
     r = r.where(r>naming_threshold).dropna()  #only positive values
@@ -552,6 +552,7 @@ tagged_artists = pd.DataFrame({
 tagged_artists['hr_played'] = tagged_artists['artist_name'].map(streamhx.groupby(by='artist_name')['hr_played'].sum())
 
 #clean up outlier tags for popular artists showing up in summaries
+tagged_artists = tagged_artists[tagged_artists['cluster_name']!='Other']  #don't bother showing that "other" either if it shows up
 tagged_artists['corr_toptags'] = [artist_tags.iloc[_i][r['cluster_name'].split('/')].sum() for _i, r in tagged_artists.iterrows()]  #identify artist correlation with top 2 tags
 tagged_artists = tagged_artists[tagged_artists['corr_toptags']>0]  #drop artists actively decorrelated with top 2 tags
 
@@ -562,7 +563,6 @@ streamhx['cluster_name'] = streamhx['artist_name'].map(artist_labels)
 _crank = streamhx.groupby('cluster_name')['hr_played'].sum().sort_values(ascending=False)
 _cumpct = _crank.cumsum() / _crank.sum()
 graph_clusters = _cumpct[_cumpct<=0.90].index  #only include categories that explain 90% of listening
-graph_clusters = [c for c in graph_clusters if c != 'Other']  #don't bother showing that "other" either if it shows up
 
 
 # In[175]:
